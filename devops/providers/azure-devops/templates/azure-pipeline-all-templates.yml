@@ -1,0 +1,83 @@
+# This pipeline represents a deployment that triggers all Cobalt templates.
+# It is not used for CICD because the isolated template
+# (infra/templates/az-isolated-service-single-region) takes quite some time
+# to deploy. In fact, it exceedes the "free" tier of ADO build agents and can
+# cause failures. So we do not run it as part of the regular CICD loop.
+#
+# Configuring this template to run with self-hosted agents solves that problem.
+
+
+trigger:
+  batch: true
+  branches:
+    include:
+    - master
+  paths:
+    include:
+    - /infra/modules/*
+    - /infra/templates/*
+    - /test/*
+    exclude:
+    - devops/*
+    - design-reference/*
+    - /**/*.md
+    - /test/docker/*
+
+pr:
+  autoCancel: false
+  branches:
+    include:
+    - master
+  paths:
+    include:
+    - /infra/modules/*
+    - /infra/templates/*
+    - /test/*
+    exclude:
+    - devops/*
+    - design-reference/*
+    - /**/*.md
+    - /test/docker/*
+
+variables:
+  - name: 'TF_VERSION'
+    value: '0.12.24'
+  - name: 'GO_VERSION'
+    value: '1.12.14'
+  - name: 'TF_ROOT_DIR'
+    value: 'infra'
+  - name: 'PIPELINE_ROOT_DIR'
+    value: 'devops/providers/azure-devops/templates/infrastructure'
+  - name: 'TEST_HARNESS_DIR'
+    value: 'test-harness'
+  - group: 'Infrastructure Pipeline Variables'
+  
+stages:
+- template: infrastructure/prepare-stage.yml
+  parameters:
+    environments:
+    - name: 'devint'
+      enablePrIsolation: true    # set to true if you want PRs to be isolated, false otherwise
+      resourceNameIsolationLevel: 8
+
+    configurations:
+    - jobName: az_hw
+      terraformTemplatePath: infra/templates/az-hello-world
+      terraformWorkspacePrefix: hw
+      deploymentTimeoutInMinutes: 10     # Not supported as a Variable :-(
+      environmentsToTeardownAfterRelease:
+      - 'devint'
+
+    - jobName: az_svc_sr
+      terraformTemplatePath: infra/templates/az-service-single-region
+      terraformWorkspacePrefix: sr
+      deploymentTimeoutInMinutes: 60     # Not supported as a Variable :-(
+      environmentsToTeardownAfterRelease:
+      - 'devint'
+
+    - jobName: az_svc_iso
+      terraformTemplatePath: infra/templates/az-isolated-service-single-region
+      terraformWorkspacePrefix: iso
+      deploymentTimeoutInMinutes: 120     # Not supported as a Variable :-(
+      environmentsToTeardownAfterRelease:
+      - 'devint'

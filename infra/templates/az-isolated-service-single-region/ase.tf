@@ -14,16 +14,18 @@ resource "azurerm_resource_group" "admin_rg" {
   provider = azurerm.admin
 }
 
-resource "azurerm_management_lock" "admin_rg_lock" {
-  name       = local.admin_rg_lock
-  scope      = azurerm_resource_group.admin_rg.id
-  lock_level = "CanNotDelete"
-  provider   = azurerm.admin
+# Note: this should be uncommented for production scenarios. It is commented
+#       to support a teardown after deployment for the Cobalt CICD pipeline.
+# resource "azurerm_management_lock" "admin_rg_lock" {
+#   name       = local.admin_rg_lock
+#   scope      = azurerm_resource_group.admin_rg.id
+#   lock_level = "CanNotDelete"
+#   provider   = azurerm.admin
 
-  lifecycle {
-    prevent_destroy = true
-  }
-}
+#   lifecycle {
+#     prevent_destroy = true
+#   }
+# }
 
 module "app_insights" {
   source                           = "../../modules/providers/azure/app-insights"
@@ -66,7 +68,10 @@ module "app_service" {
   app_service_config = {
     for target in var.unauthn_deployment_targets :
     target.app_name => {
-      image = ""
+      image            = ""
+      linux_fx_version = "DOCKER"
+      app_settings     = {}
+      app_command_line = null
     }
   }
   providers = {
@@ -99,7 +104,10 @@ module "authn_app_service" {
   app_service_config = {
     for target in var.authn_deployment_targets :
     target.app_name => {
-      image = ""
+      image            = ""
+      linux_fx_version = "DOCKER"
+      app_settings     = {}
+      app_command_line = null
     }
   }
   providers = {
@@ -167,12 +175,12 @@ resource "null_resource" "auth" {
       EOF
 
     environment = {
-      SUBSCRIPTION_ID = data.azurerm_client_config.current.subscription_id
+      SUBSCRIPTION_ID     = data.azurerm_client_config.current.subscription_id
       RESOURCE_GROUP_NAME = azurerm_resource_group.admin_rg.name
-      SLOTSHORTNAME = module.authn_app_service.app_service_config_data[count.index].slot_short_name
-      APPNAME = module.authn_app_service.app_service_config_data[count.index].app_name
-      ISSUER = format("https://sts.windows.net/%s", local.tenant_id)
-      APPID = module.ad_application.azuread_config_data[format("%s-%s", module.authn_app_service.app_service_config_data[count.index].app_name, var.auth_suffix)].application_id
+      SLOTSHORTNAME       = module.authn_app_service.app_service_config_data[count.index].slot_short_name
+      APPNAME             = module.authn_app_service.app_service_config_data[count.index].app_name
+      ISSUER              = format("https://sts.windows.net/%s", local.tenant_id)
+      APPID               = module.ad_application.azuread_config_data[format("%s-%s", module.authn_app_service.app_service_config_data[count.index].app_name, var.auth_suffix)].application_id
     }
   }
 }

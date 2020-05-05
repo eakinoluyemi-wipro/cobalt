@@ -1,0 +1,52 @@
+
+parameters:
+  terraformWorkspacePrefix: ''
+  environmentName: ''
+  enablePrIsolation: true
+  stepName: ''
+
+steps:
+  - task: Bash@3
+    name: ${{ parameters.stepName }}
+    displayName: Workspace Name
+    env:
+      TERRAFORM_WORKSPACE_PREFIX: ${{ parameters.terraformWorkspacePrefix }}
+      ENVIRONMENT_NAME: ${{ parameters.environmentName }}
+      PR_ISOLATION: ${{ parameters.enablePrIsolation }}
+    inputs:
+      targetType: 'inline'
+      script: |
+        #!/usr/bin/env bash
+
+        # Incorporate the PR number into the terraform workspace name, if this is a PR build
+        # and PR isolation is enabled. Otherwise use a simple prefix+environment for the workspace
+
+        PR_NUMBER=""
+        if [[ $PR_ISOLATION == true ]]; then
+            PR_NUMBER="$SYSTEM_PULLREQUEST_PULLREQUESTNUMBER"
+        fi
+
+        OUTVAR=""
+        if [[ "$PR_NUMBER" != "" ]]; then
+            if [[ "$TERRAFORM_WORKSPACE_PREFIX" != "" ]]; then
+                OUTVAR="pr$PR_NUMBER-$TERRAFORM_WORKSPACE_PREFIX"
+            else
+                OUTVAR="pr$PR_NUMBER"
+            fi
+        else
+            if [[ "$TERRAFORM_WORKSPACE_PREFIX" != "" ]]; then
+                OUTVAR="$TERRAFORM_WORKSPACE_PREFIX-$ENVIRONMENT_NAME"
+            else
+                OUTVAR="$ENVIRONMENT_NAME"
+            fi
+        fi
+
+        echo "BUILD_SOURCEBRANCH: $BUILD_SOURCEBRANCH"
+        echo "TERRAFORM_WORKSPACE_PREFIX: $TERRAFORM_WORKSPACE_PREFIX"
+        echo "ENVIRONMENT_NAME: $ENVIRONMENT_NAME"
+        echo "PR_ISOLATION: $PR_ISOLATION"
+        echo "PR_NUMBER: $PR_NUMBER"
+        echo "OUTVAR: $OUTVAR"
+        echo "##vso[task.setvariable variable=TF_WORKSPACE_NAME;isOutput=true]$OUTVAR"
+
+        exit 0

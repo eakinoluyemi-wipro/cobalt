@@ -14,16 +14,18 @@ resource "azurerm_resource_group" "app_rg" {
   provider = azurerm.app_dev
 }
 
-resource "azurerm_management_lock" "app_rg_lock" {
-  name       = local.app_rg_lock
-  scope      = azurerm_resource_group.app_rg.id
-  lock_level = "CanNotDelete"
-  provider   = azurerm.app_dev
+# Note: this should be uncommented for production scenarios. It is commented
+#       to support a teardown after deployment for the Cobalt CICD pipeline.
+# resource "azurerm_management_lock" "app_rg_lock" {
+#   name       = local.app_rg_lock
+#   scope      = azurerm_resource_group.app_rg.id
+#   lock_level = "CanNotDelete"
+#   provider   = azurerm.app_dev
 
-  lifecycle {
-    prevent_destroy = true
-  }
-}
+#   lifecycle {
+#     prevent_destroy = true
+#   }
+# }
 
 // Query for the subnets within the VNET that lives in the admin subscription
 data "external" "ase_subnets" {
@@ -36,10 +38,11 @@ data "external" "ase_subnets" {
 }
 
 module "keyvault" {
-  source                = "../../modules/providers/azure/keyvault"
-  keyvault_name         = local.kv_name
-  resource_group_name   = azurerm_resource_group.app_rg.name
-  subnet_id_whitelist   = values(data.external.ase_subnets.result)
+  source              = "../../modules/providers/azure/keyvault"
+  keyvault_name       = local.kv_name
+  resource_group_name = azurerm_resource_group.app_rg.name
+  # NOTE: uncomment if the CI/CD can run within the subnet
+  # subnet_id_whitelist   = values(data.external.ase_subnets.result)
   resource_ip_whitelist = var.resource_ip_whitelist
   providers = {
     "azurerm" = "azurerm.app_dev"
@@ -57,7 +60,7 @@ module "container_registry" {
   subnet_id_whitelist    = values(data.external.ase_subnets.result)
   resource_ip_whitelist  = var.resource_ip_whitelist
   providers = {
-    "azurerm" = "azurerm.app_dev"
+    azurerm = azurerm.app_dev
   }
 }
 
@@ -66,7 +69,7 @@ module "app_service_principal_contributor" {
   create_for_rbac = true
   display_name    = local.svc_princ_name
   role_name       = "Contributor"
-  role_scope      = "${module.container_registry.container_registry_id}"
+  role_scopes     = ["${module.container_registry.container_registry_id}"]
 }
 
 resource "azurerm_role_assignment" "sp_role_key_vault" {
@@ -92,7 +95,7 @@ module "acr_service_principal_acrpull" {
   create_for_rbac = true
   display_name    = local.acr_svc_princ_name
   role_name       = "acrpull"
-  role_scope      = "${module.container_registry.container_registry_id}"
+  role_scopes     = ["${module.container_registry.container_registry_id}"]
 }
 
 module "acr_service_principal_secrets" {

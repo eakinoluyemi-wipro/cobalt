@@ -9,8 +9,8 @@ import (
 
 	"github.com/gruntwork-io/terratest/modules/random"
 	"github.com/gruntwork-io/terratest/modules/terraform"
-	"github.com/microsoft/cobalt/test-harness/infratests"
 	"github.com/microsoft/cobalt/test-harness/terratest-extensions/modules/azure"
+	"github.com/microsoft/terratest-abstraction/unit"
 )
 
 var region = "eastus2"
@@ -182,13 +182,13 @@ func TestTemplate(t *testing.T) {
 		"secret_permissions":      ["delete", "get", "set", "list"]
 	}`)
 
-	testFixture := infratests.UnitTestFixture{
+	testFixture := unit.UnitTestFixture{
 		GoTest:                t,
 		TfOptions:             tfOptions,
 		Workspace:             workspace,
 		PlanAssertions:        nil,
-		ExpectedResourceCount: 59,
-		ExpectedResourceAttributeValues: infratests.ResourceDescription{
+		ExpectedResourceCount: 57,
+		ExpectedResourceAttributeValues: unit.ResourceDescription{
 			"module.keyvault.azurerm_key_vault.keyvault":                                                                               expectedKeyVault,
 			"module.container_registry.azurerm_container_registry.container_registry":                                                  expectedAzureContainerRegistry,
 			"azurerm_resource_group.app_rg":                                                                                            expectedAppDevResourceGroup,
@@ -199,7 +199,7 @@ func TestTemplate(t *testing.T) {
 			"module.authn_app_service.azurerm_app_service.appsvc[0]":                                                                   expectedAppService,
 			"module.app_service.azurerm_app_service_slot.appsvc_staging_slot[0]":                                                       expectedAppServiceSlot,
 			"module.authn_app_service.azurerm_app_service_slot.appsvc_staging_slot[0]":                                                 expectedAppServiceSlot,
-			"module.service_plan.azurerm_monitor_autoscale_setting.app_service_auto_scale":                                             expectedAutoScalePlan,
+			"module.service_plan.azurerm_monitor_autoscale_setting.app_service_auto_scale[0]":                                          expectedAutoScalePlan,
 			"module.app_service_keyvault_access_policy.azurerm_key_vault_access_policy.keyvault[0]":                                    expectedAppServiceKVPolicies,
 			"module.authn_app_service_keyvault_access_policy.azurerm_key_vault_access_policy.keyvault[0]":                              expectedAppServiceKVPolicies,
 			"module.keyvault.module.deployment_service_principal_keyvault_access_policies.azurerm_key_vault_access_policy.keyvault[0]": expectedDeploymentServicePrincipalKVPolicies,
@@ -208,5 +208,5 @@ func TestTemplate(t *testing.T) {
 
 	// Required because there is a VNET query done by the template that requires a call to Azure CLI
 	azure.CliServicePrincipalLogin(t)
-	infratests.RunUnitTests(&testFixture)
+	unit.RunUnitTests(&testFixture)
 }

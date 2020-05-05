@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/gruntwork-io/terratest/modules/terraform"
-	"github.com/microsoft/cobalt/test-harness/infratests"
+	"github.com/microsoft/terratest-abstraction/unit"
 )
 
 var region = "eastus"
@@ -75,7 +75,7 @@ func TestTemplate(t *testing.T) {
 			  },{
 				"metric_trigger": [{
 					"metric_name":      "CpuPercentage",
-					"operator":         "GreaterThan",
+					"operator":         "LessThan",
 					"statistic":        "Average",
 					"threshold":        25,
 					"time_aggregation": "Average",
@@ -98,12 +98,12 @@ func TestTemplate(t *testing.T) {
 		"secret_permissions":      ["delete", "get", "set", "list"]
 	}`)
 
-	testFixture := infratests.UnitTestFixture{
+	testFixture := unit.UnitTestFixture{
 		GoTest:                t,
 		TfOptions:             tfOptions,
 		PlanAssertions:        nil,
 		ExpectedResourceCount: 36,
-		ExpectedResourceAttributeValues: infratests.ResourceDescription{
+		ExpectedResourceAttributeValues: unit.ResourceDescription{
 			"azurerm_resource_group.svcplan": map[string]interface{}{
 				"location": region,
 			},
@@ -118,10 +118,10 @@ func TestTemplate(t *testing.T) {
 			},
 			"module.app_service.azurerm_app_service.appsvc[0]":                                                                         expectedAppServicePlan,
 			"module.app_gateway.azurerm_application_gateway.appgateway":                                                                expectedAppGatewayPlan,
-			"module.service_plan.azurerm_monitor_autoscale_setting.app_service_auto_scale":                                             expectedAutoScalePlan,
+			"module.service_plan.azurerm_monitor_autoscale_setting.app_service_auto_scale[0]":                                          expectedAutoScalePlan,
 			"module.keyvault.module.deployment_service_principal_keyvault_access_policies.azurerm_key_vault_access_policy.keyvault[0]": expectedDeploymentServicePrincipalKVPolicies,
 		},
 	}
 
-	infratests.RunUnitTests(&testFixture)
+	unit.RunUnitTests(&testFixture)
 }
